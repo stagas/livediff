@@ -277,9 +277,10 @@ func main() {
 	}
 
 	a.println(a.paint(cyan, "livediff watching "+cwd))
-	a.println(a.paint(dim, "Press q or Ctrl-C to quit."))
+	a.println(a.paint(dim, "Press c to clear; q or Ctrl-C to quit."))
 
 	stop := make(chan os.Signal, 1)
+	clearScreen := make(chan struct{}, 1)
 	signal.Notify(stop, os.Interrupt, syscall.Signal(15))
 	defer signal.Stop(stop)
 
@@ -300,6 +301,12 @@ func main() {
 						stop <- os.Interrupt
 						return
 					}
+					if buffer[0] == 'c' || buffer[0] == 'C' {
+						select {
+						case clearScreen <- struct{}{}:
+						default:
+						}
+					}
 				}
 			}()
 		}
@@ -312,6 +319,8 @@ func main() {
 		case <-stop:
 			a.println(a.paint(dim, "\nStopped."))
 			return
+		case <-clearScreen:
+			a.write("\x1b[2J\x1b[H")
 		case <-ticker.C:
 			if err := a.scan(); err != nil {
 				fmt.Fprintln(os.Stderr, "livediff:", err)
